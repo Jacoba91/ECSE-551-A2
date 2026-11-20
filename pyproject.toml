@@ -1,0 +1,9 @@
+[project]
+name = "ecse-551-a2"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "ipykernel>=7.4.0",
+    "jupyter>=1.1.1",
+    "kagglehub>=1.0.3",
+]
