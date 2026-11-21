@@ -7,4 +7,5 @@ dependencies = [
     "jupyter>=1.1.1",
     "kagglehub>=1.0.3",
     "torch>=2.15.0",
+    "pillow>=13.0.0",
 ]
