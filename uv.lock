@@ -558,7 +558,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=13.0.0" },
     { name = "torch", specifier = ">=2.15.0" },
     { name = "torchvision", specifier = ">=0.29.2" },
-    { name = "transformers", specifier = ">=5.24.1" },
+    { name = "transformers", specifier = ">=4.56.0" },
 ]
 
 [[package]]
