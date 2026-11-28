@@ -42,15 +42,20 @@ and Vision Transformers for Image Classification}
 % ==================================================
 
 \begin{abstract}
-
-% 100--150 words.
-
+This work investigates deep learning approaches to image classification 
+using the RIVAL10 dataset, comprising 21,178 labeled training images 
+and 5,306 test images across ten object categories. A Convolutional 
+Neural Network (CNN) and a Vision Transformer (ViT) are designed and 
+trained from scratch, with systematic experimentation conducted to 
+evaluate architectural choices, hyperparameters, and generalization 
+performance. The models are compared through classification accuracy, 
+per-class performance, prediction agreement, and object and background 
+perturbation experiments to assess their reliance on relevant visual 
+features. The CNN and ViT achieve test accuracies of [XX]\% and 
+[XX]\%, respectively, with [KEY COMPARATIVE FINDING AND EXPLANATION]. 
+Additionally, a transfer learning approach employing a frozen, pre-trained DINOv3 Vision Transformer backbone and a trainable linear classification head achieves an accuracy of [XX]\%. These results highlight 
+[KEY FINDING REGARDING ARCHITECTURAL TRADE-OFFS AND TRANSFER LEARNING].
 \end{abstract}
-
-\begin{IEEEkeywords}
-Image Classification, Convolutional Neural Networks,
-Vision Transformers, DINOv3, Transfer Learning.
-\end{IEEEkeywords}
 
 % ==================================================
 % I. INTRODUCTION
@@ -58,6 +63,38 @@ Vision Transformers, DINOv3, Transfer Learning.
 
 \section{Introduction}
 \label{sec:introduction}
+
+Image classification is a fundamental problem in computer vision, 
+with the objective of assigning semantic categories to images 
+based on their visual content. This work investigates the 
+performance of different deep learning architectures on the 
+RIVAL10 dataset, consisting of 21,098 labeled images and 5,286 
+unlabeled test images across ten approximately balanced object 
+categories. The dataset also provides object segmentation masks, 
+enabling an analysis of the extent to which classifiers rely on 
+object features rather than contextual background information.
+
+The study is divided into two tasks. In Task 1, a Convolutional 
+Neural Network (CNN) and a Vision Transformer (ViT) are designed 
+and trained from scratch. Architectural choices and training 
+hyperparameters are explored experimentally, and the resulting 
+models are compared in terms of classification performance, 
+generalization, class-specific errors, and reliance on object 
+and background features. In Task 2, the objective is to maximize 
+classification performance by leveraging transfer learning. 
+A frozen, pre-trained DINOv3 Vision Transformer backbone is 
+employed as a feature extractor alongside a trainable linear 
+classification head.
+
+The experimental results demonstrate that the CNN substantially 
+outperforms the ViT when trained from scratch, achieving 
+accuracies of [XX]\% and [XX]\%, respectively. This observation 
+is consistent with the stronger spatial inductive biases of 
+CNNs, which are particularly advantageous when training data 
+is limited. The DINOv3-based model considerably outperforms 
+both architectures, achieving an accuracy of [XX]\%, 
+highlighting the effectiveness of visual representations learned 
+through large-scale self-supervised pre-training.
 
 
 % ==================================================
@@ -69,11 +106,127 @@ Vision Transformers, DINOv3, Transfer Learning.
 
 \subsection{Dataset Overview}
 
+The RIVAL10 dataset used in this study consists of 21,098
+labeled images and 5,286 unlabeled test images, distributed
+across ten object categories: bird, car, cat, deer, dog,
+equine, frog, plane, ship, and truck. Each image is
+accompanied by a segmentation mask distinguishing the
+foreground object from the background. These masks enable
+controlled perturbation experiments to investigate the
+extent to which the classifiers rely on object-specific
+features rather than contextual information.
+
 \subsection{Statistical Analysis}
+
+The dataset is approximately class-balanced, with the
+number of labeled images per class ranging from 2,011
+(truck) to 2,127 (frog). This relatively small variation
+suggests that class imbalance is unlikely to substantially
+bias the classifiers toward particular categories.
+Consequently, no class weighting or oversampling was applied.
+
+The RGB channel statistics were computed exclusively from
+the training partition and are presented in
+Table~\ref{tab:channel_statistics}. The blue channel exhibits
+a lower mean intensity and slightly greater variability
+than the red and green channels. Channel-wise normalization
+accounts for these differences, ensuring that the input
+channels operate on comparable numerical scales during
+optimization.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Training Set RGB Channel Statistics}
+    \label{tab:channel_statistics}
+    \begin{tabular}{lcc}
+        \toprule
+        Channel & Mean & Standard Deviation \\
+        \midrule
+        Red   & 0.4810 & 0.2569 \\
+        Green & 0.4732 & 0.2518 \\
+        Blue  & 0.4245 & 0.2726 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
 
 \subsection{Training, Validation, and Test Splits}
 
+The labeled dataset was partitioned into training and
+validation sets using a stratified 90/10 split with a
+fixed random seed of 42. The resulting partitions contain
+18,987 training images and 2,111 validation images.
+Stratification preserves the original class proportions,
+ensuring that all categories are adequately represented
+during both training and validation.
+
+The 5,286 unlabeled competition images constitute the
+external test set. Identical dataset partitions were used
+across all three architectures to ensure consistent
+evaluation and meaningful performance comparisons.
+
 \subsection{Data Preprocessing and Augmentation}
+
+All images were converted to RGB and standardized to an
+input dimension of $224 \times 224 \times 3$. Pixel
+intensities were converted to floating-point values in
+$[0,1]$ and subsequently normalized independently for each
+channel according to
+
+\begin{equation}
+    \hat{x}_c = \frac{x_c - \mu_c}{\sigma_c},
+\end{equation}
+
+where $\mu_c$ and $\sigma_c$ denote the mean and standard
+deviation of channel $c$, respectively. For Task 1, these
+statistics were computed solely from the training images
+to prevent information leakage. For Task 2, the
+normalization statistics associated with the pre-trained
+DINOv3 checkpoint were used to maintain consistency with
+its expected input distribution.
+
+To improve generalization and mitigate overfitting, the
+following stochastic transformations were applied during
+training:
+
+\begin{itemize}
+    \item \textbf{Random resized cropping:} Crops covering
+    80--100\% of the original image area, with aspect
+    ratios between 0.9 and 1.1, were resized to
+    $224 \times 224$ pixels to introduce variation in
+    object scale and spatial composition.
+
+    \item \textbf{Random horizontal flipping:} Images
+    were flipped with a probability of 0.5 to reduce
+    sensitivity to horizontal orientation.
+
+    \item \textbf{Color jitter:} Brightness, contrast,
+    and saturation were varied using a magnitude of 0.2,
+    with hue varied using a magnitude of 0.05, to improve
+    robustness to changes in illumination and color.
+\end{itemize}
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\columnwidth]
+        {augmentation_comparison.png}
+    \caption{Comparison of unaugmented and augmented
+    training images across three representative classes.}
+    \label{fig:augmentation}
+\end{figure}
+
+As illustrated in Fig.~\ref{fig:augmentation}, these
+transformations introduce meaningful geometric and
+photometric variation while preserving recognizable
+class-specific features. This effectively increases the
+diversity of training observations without requiring
+additional labeled data.
+
+Validation and test images underwent only deterministic
+bilinear resizing, pixel scaling, and channel-wise
+normalization. Excluding stochastic transformations
+during evaluation ensures that measured performance
+differences are attributable to the models rather than
+random variations in their inputs.
 
 
 % ==================================================
@@ -84,17 +237,244 @@ Vision Transformers, DINOv3, Transfer Learning.
 \label{sec:methodology}
 
 \subsection{Task 1: Convolutional Neural Network}
+\label{sec:cnn}
 
 \subsubsection{Model Architecture}
 
+Two CNN architectures, denoted CNN1 and CNN2, were
+implemented from scratch using PyTorch. Both architectures
+consist of three convolutional blocks with progressively
+increasing channel dimensions of 32, 64, and 128.
+CNN1 follows a conventional three-layer design, with one
+convolutional layer per block, while CNN2 extends this
+design to two convolutional layers per block.
+
+Each convolution employs a $3 \times 3$ kernel with
+unit stride and padding, preserving spatial dimensions
+within each block. Convolutions are followed by batch
+normalization and ReLU activation. Each block concludes
+with a $2 \times 2$ max pooling operation, reducing the
+spatial dimensions by a factor of two.
+
+Following feature extraction, global average pooling
+reduces each of the 128 feature maps to a single scalar.
+The resulting feature vector passes through a dropout
+layer and a fully connected classification layer,
+producing ten class logits.
+
+Table~\ref{tab:cnn_architecture} summarizes the structural
+differences between the two architectures.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Comparison of CNN Architectures}
+    \label{tab:cnn_architecture}
+    \begin{tabular}{lccc}
+        \toprule
+        Stage & CNN1 & CNN2 & Output Dimensions \\
+        \midrule
+        Input & -- & -- & $3 \times 224 \times 224$ \\
+        Block 1 & 1 Conv & 2 Conv & $32 \times 112 \times 112$ \\
+        Block 2 & 1 Conv & 2 Conv & $64 \times 56 \times 56$ \\
+        Block 3 & 1 Conv & 2 Conv & $128 \times 28 \times 28$ \\
+        Global Avg. Pool & -- & -- & $128 \times 1 \times 1$ \\
+        Classifier & Linear & Linear & $10$ \\
+        \midrule
+        Parameters & 94,986 & 289,194 & -- \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 \subsubsection{Architectural Design Decisions}
+
+The convolutional architecture exploits locality and
+weight sharing, providing spatial inductive biases that
+are particularly advantageous when training on relatively
+limited datasets. Small $3 \times 3$ kernels allow the
+network to learn local visual patterns, while successive
+convolutional blocks combine these patterns into
+increasingly abstract feature representations.
+
+The number of feature channels doubles after each
+downsampling stage to increase representational capacity
+as spatial resolution decreases. Max pooling reduces
+computational cost and provides robustness to small
+spatial variations. Batch normalization promotes stable
+optimization, while ReLU introduces the nonlinearity
+necessary to learn complex feature representations.
+
+Global average pooling was selected instead of directly
+flattening the final feature maps to substantially reduce
+the number of classifier parameters and mitigate
+overfitting. This encourages classification based on
+the presence of learned features rather than their
+precise spatial locations.
+
+CNN1 served as the initial architectural prototype, while
+CNN2 was developed to increase feature extraction capacity
+before spatial information is discarded through pooling.
+The additional convolutional layers increase the effective
+receptive field and introduce further nonlinear
+transformations without requiring additional downsampling.
+Despite approximately tripling the parameter count,
+CNN2 remains relatively lightweight at 289,194 trainable
+parameters.
+
+Both architectures were incorporated into preliminary
+small-scale training protocols for development and
+pipeline verification. CNN2 was subsequently selected
+for full-scale training and hyperparameter exploration
+based on its greater representational capacity.
 
 
 \subsection{Task 1: Vision Transformer}
+\label{sec:vit}
 
 \subsubsection{Model Architecture}
 
+A Vision Transformer (ViT) was designed and trained
+from scratch using PyTorch. The architecture consists
+of a learnable patch embedding layer, learnable
+positional embeddings, a classification token, four
+transformer encoder blocks, and a linear classification
+head.
+
+Unlike the CNN, which processes images through successive
+spatial convolutions, the ViT represents each image as
+a sequence of embedded patches. Given an input image
+of dimensions $H \times W \times 3$, a patch size $P$,
+and a stride $S$, the number of extracted patches is
+
+\begin{equation}
+    N =
+    \left(\left\lfloor\frac{H-P}{S}\right\rfloor+1\right)
+    \left(\left\lfloor\frac{W-P}{S}\right\rfloor+1\right).
+\end{equation}
+
+Patch extraction and linear projection are implemented
+jointly using a two-dimensional convolution with kernel
+size $P$, stride $S$, and $D$ output channels, where
+$D$ denotes the embedding dimension. This operation is
+equivalent to flattening each patch and applying a shared
+learnable linear projection from $3P^2$ to $D$ dimensions,
+while providing a computationally efficient implementation.
+
+The resulting spatial feature maps are flattened into
+a sequence of $N$ patch embeddings. A learnable
+classification token is prepended to this sequence,
+and learnable positional embeddings are added
+element-wise, yielding
+
+\begin{equation}
+    \mathbf{Z}_0 =
+    [\mathbf{x}_{\mathrm{cls}};
+    \mathbf{x}_1;\ldots;\mathbf{x}_N]
+    + \mathbf{E}_{\mathrm{pos}},
+\end{equation}
+
+where $\mathbf{x}_i \in \mathbb{R}^{D}$ represents
+the embedding of patch $i$ and
+$\mathbf{E}_{\mathrm{pos}} \in
+\mathbb{R}^{(N+1)\times D}$ represents the positional
+embedding matrix. Both the classification token and
+positional embeddings are initialized to zero and
+optimized jointly with the remaining model parameters.
+Dropout is applied to the resulting token sequence
+before it enters the transformer encoder.
+
+Each encoder block consists of multi-head self-attention
+followed by a feedforward network with GELU activation.
+Pre-layer normalization and residual connections are
+employed around both components to promote stable
+gradient propagation. Self-attention allows each token
+to incorporate information from all other tokens,
+capturing relationships between spatially distant
+regions of the image.
+
+Following the final encoder block, the classification
+token is extracted, normalized, and passed through
+a linear classification head to produce ten class logits.
+
+Table~\ref{tab:vit_architecture} summarizes the baseline
+architectural configuration.
+
+\begin{table}[htbp]
+    \centering
+    \caption{Baseline Vision Transformer Architecture}
+    \label{tab:vit_architecture}
+    \begin{tabular}{lc}
+        \toprule
+        Architectural Parameter & Value \\
+        \midrule
+        Input resolution & $224 \times 224 \times 3$ \\
+        Patch size & $16 \times 16$ \\
+        Patch stride & 16 \\
+        Number of patches & 196 \\
+        Token sequence length & 197 \\
+        Embedding dimension & 128 \\
+        Transformer encoder blocks & 4 \\
+        Attention heads per block & 4 \\
+        Attention head dimension & 32 \\
+        Feedforward hidden dimension & 256 \\
+        Embedding dropout & 0.1 \\
+        Encoder dropout & 0.1 \\
+        Output classes & 10 \\
+        Trainable parameters & 655,242 \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
 \subsubsection{Architectural Design Decisions}
+
+The patch-based representation was selected to make
+self-attention computationally tractable for image
+classification. Applying self-attention directly to
+individual pixels would produce an excessively long
+token sequence, whereas patch embeddings provide a
+more compact representation of local image regions.
+
+The initial implementation exposed patch size and
+stride as independent architectural parameters to
+support experimentation with overlapping patches.
+Overlapping patches were considered as a means of
+preserving spatial continuity and reducing information
+loss at patch boundaries. However, decreasing the
+stride increases the number of tokens, and the
+computational and memory costs associated with standard
+self-attention grow quadratically with sequence length.
+Given the available computational resources, overlapping
+patch configurations were not explored. Instead, the
+stride was set equal to the patch size, following the
+conventional non-overlapping patch formulation.
+
+A baseline patch size of $16 \times 16$ was selected
+to retain sufficient spatial detail while maintaining
+a manageable sequence length. A coarser patch size
+of $32 \times 32$ was also included in the experimental
+design to investigate the trade-off between spatial
+granularity and computational efficiency.
+
+Positional embeddings were incorporated because
+self-attention does not inherently encode the spatial
+ordering of input tokens. Learnable positional
+embeddings allow the model to distinguish patches
+according to their original image locations and
+learn task-specific spatial representations.
+
+The classification token provides a dedicated mechanism
+for aggregating information across the patch sequence.
+Through successive self-attention operations, this
+token learns a global image representation suitable
+for classification without requiring an explicit
+pooling operation over the patch embeddings.
+
+The encoder depth, embedding dimension, and
+feedforward dimension were selected to balance
+representational capacity against computational cost
+and the risk of overfitting. Four attention heads
+allow the model to attend to different feature
+relationships in parallel, while dropout provides
+regularization throughout the architecture.
 
 
 \subsection{Training Strategy}
