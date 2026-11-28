@@ -42,9 +42,10 @@ and Vision Transformers for Image Classification}
 % ==================================================
 
 \begin{abstract}
-This work investigates deep learning approaches to image classification 
-using the RIVAL10 dataset, comprising 21,178 labeled training images 
-and 5,306 test images across ten object categories. A Convolutional 
+This work investigates deep learning approaches to image
+classification using the RIVAL10 dataset, comprising 21,098
+labeled images and 5,286 test images across ten object
+categories. A Convolutional 
 Neural Network (CNN) and a Vision Transformer (ViT) are designed and 
 trained from scratch, with systematic experimentation conducted to 
 evaluate architectural choices, hyperparameters, and generalization 
@@ -496,10 +497,89 @@ regularization throughout the architecture.
 
 
 \subsection{Task 2: Pre-trained Architecture}
+\label{sec:dinov3}
 
 \subsubsection{DINOv3 Backbone}
 
+For Task 2, a transfer learning approach was adopted
+using the pre-trained DINOv3 ViT-S/16 architecture, developed by Meta AI.
+DINOv3 is a vision foundation model that leverages
+large-scale self-supervised learning to obtain
+general-purpose visual representations that can be
+applied to downstream computer vision tasks with
+limited labeled data.
+
+The ViT-S/16 variant was selected to balance
+representational quality and computational efficiency.
+The backbone contains approximately 21 million parameters
+and processes images using non-overlapping $16 \times 16$
+patches with an embedding dimension of 384.
+
+Rather than fine-tuning the pre-trained architecture,
+all backbone parameters were frozen, and the model was
+used exclusively as a feature extractor. This approach,
+known as linear probing, substantially reduces training
+cost and the risk of overfitting while preserving the
+visual representations learned during pre-training.
+
 \subsubsection{Linear Classification Head and Training}
+
+For an input image of resolution $224 \times 224$,
+the backbone produces a sequence consisting of one
+classification token, four register tokens, and 196
+spatial patch tokens. Each token is represented by a
+384-dimensional embedding.
+
+To exploit both global and spatial feature representations,
+the classification token was concatenated with the mean
+of the patch embeddings:
+
+\begin{equation}
+    \mathbf{f} =
+    \left[
+        \mathbf{z}_{\mathrm{cls}};
+        \frac{1}{N}\sum_{i=1}^{N}\mathbf{z}_i
+    \right]
+    \in \mathbb{R}^{768},
+\end{equation}
+
+where $N=196$ and $\mathbf{z}_i \in \mathbb{R}^{384}$
+denotes the embedding of patch $i$. Register tokens
+were excluded from the aggregation because they do not
+correspond to spatial image regions.
+
+This feature aggregation strategy was selected to
+combine the global semantic information captured by
+the classification token with the visual information
+distributed across the spatial patch embeddings.
+
+The resulting feature vector is passed through a single
+trainable linear layer:
+
+\begin{equation}
+    \mathbf{y} = \mathbf{W}\mathbf{f} + \mathbf{b},
+    \quad
+    \mathbf{W} \in \mathbb{R}^{10 \times 768},
+\end{equation}
+
+producing ten class logits. Consequently, only 7,690
+parameters require optimization, despite the considerably
+larger backbone architecture.
+
+The classification head is trained using cross-entropy
+loss and the AdamW optimizer, while the backbone remains
+in evaluation mode with gradient computation disabled.
+The same dataset partitions and augmentation strategy
+described in Section~\ref{sec:datasets} are retained,
+with normalization statistics corresponding to the
+pre-trained DINOv3 checkpoint.
+
+Partial fine-tuning of the final transformer encoder
+blocks, as well as full fine-tuning of the backbone,
+was considered to further adapt the pre-trained visual
+representations to the classification task. However,
+these strategies were not explored due to computational
+resource constraints.
 
 
 % ==================================================
@@ -511,9 +591,48 @@ regularization throughout the architecture.
 
 \subsection{Convolutional Neural Network}
 
+The CNN was expected to provide a strong classification
+baseline due to its inherent ability to extract local
+spatial features through convolutional operations.
+Given the relatively balanced class distribution and
+the presence of recognizable object-specific features,
+the hierarchical feature extraction process was expected
+to yield good classification performance across the ten
+categories. However, the local nature of convolutional
+operations was initially considered a potential limitation
+relative to the global attention mechanism of the ViT.
+
 \subsection{Vision Transformer}
 
-\subsection{Comparative Performance}
+Prior to experimentation, we expected the ViT to
+outperform the CNN due to its perceived greater
+expressiveness and ability to capture long-range spatial
+dependencies through self-attention. The ability to
+directly model relationships between distant image
+regions was expected to facilitate the learning of more
+comprehensive visual representations.
+
+As discussed in Section~\ref{sec:results}, the experimental
+results contradicted this initial expectation. Subsequent
+analysis led us to reconsider the importance of
+architectural inductive biases and training dataset size,
+providing a more complete understanding of why the CNN
+was better suited to this particular learning setting.
+
+\subsection{DINOv3 Linear Probe}
+
+The pre-trained DINOv3-based architecture was expected
+to substantially outperform both models trained from
+scratch. Its large-scale self-supervised pre-training
+provides access to rich and generalizable visual
+representations that would be difficult to learn using
+the comparatively limited RIVAL10 training dataset.
+
+We therefore anticipated that these representations
+would already encode many of the features necessary to
+distinguish the ten object categories, allowing a simple
+linear classification head to achieve superior
+performance without requiring fine-tuning of the backbone.
 
 
 % ==================================================
@@ -582,12 +701,43 @@ regularization throughout the architecture.
 \section{Statement of Contributions}
 \label{sec:contributions}
 
+Garrett Woodson and Marrec Bois were responsible for the
+design, implementation, and training of the CNN architectures,
+as well as the development of the evaluation, comparative
+analysis, and inference pipelines for Task 1.
+
+William Blackmore and Jacob Aragao jointly designed and
+implemented the Vision Transformer. William Blackmore
+developed the data augmentation pipeline, while Jacob Aragao
+led the development of the shared training and model
+checkpointing infrastructure and conducted the ViT training
+experiments.
+
+For Task 2, William Blackmore implemented the DINOv3-based
+classification architecture, with training and experimentation
+conducted jointly by William Blackmore and Jacob Aragao.
+Jacob Aragao was responsible for the subsequent analysis
+of the Task 2 results.
+
+All four team members contributed to the preparation,
+review, and refinement of this report.
+
 
 % ==================================================
-% REFERENCES
+% AI USE DISCLOSURE
 % ==================================================
 
-% \bibliographystyle{IEEEtran}
-% \bibliography{references}
+\section{AI Use Disclosure}
+\label{sec:ai_disclosure}
+
+The core model implementations for Task 1 were carefully
+developed by hand. OpenAI Codex was used as an assistive
+tool to support development and reinforce understanding
+of PyTorch functionality. All architectural and training
+strategy decisions were made independently by the team,
+and all experimental results were carefully analyzed
+and understood by its members. OpenAI GPT was also used
+to assist with the preparation, refinement, and
+LateX formatting of this report.
 
 \end{document}
